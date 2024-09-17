@@ -1,0 +1,219 @@
+-- WAREHOUSES table
+CREATE TABLE warehouses(
+    warehouse_id VARCHAR2(3),                   -- Unique identifier for each warehouse
+    warehouse_name VARCHAR2(30) NOT NULL,       -- Name of the warehouse
+    warehouse_city VARCHAR2(20) NOT NULL,       -- City where the warehouse is located
+    capacity NUMBER,                            -- Capacity of the warehouse
+    CONSTRAINT chk_capacity CHECK (capacity > 0), -- Ensure capacity is positive
+    CONSTRAINT pk_warehouses PRIMARY KEY (warehouse_id) -- Primary key constraint
+);
+
+
+
+-- warehouse_locations table 
+CREATE TABLE warehouse_locations (
+    location_code VARCHAR2(20),                -- Unique code for each location
+    warehouse_id VARCHAR2(10),                 -- ID of the warehouse where the location is situated
+    location_name VARCHAR2(50),                -- Name of the location
+    capacity NUMBER,                           -- Capacity of the location
+    CONSTRAINT pk_warehouse_locations PRIMARY KEY (location_code), -- Primary key constraint
+    CONSTRAINT fk_warehouse_locations_warehouse FOREIGN KEY (warehouse_id) REFERENCES warehouses(warehouse_id) -- Foreign key constraint
+);
+
+
+
+-- employees table
+CREATE TABLE employees (
+    employee_id VARCHAR2(20) NOT NULL,         -- Unique identifier for each employee
+    first_name VARCHAR2(50) NOT NULL,          -- Employee's first name
+    last_name VARCHAR2(50) NOT NULL,           -- Employee's last name
+    contact_number NUMBER(10,0) NOT NULL,      -- Employee's contact number
+    job_title VARCHAR2(50) NOT NULL,           -- Title of the employee's job
+    warehouse_id VARCHAR2(20) NOT NULL,        -- ID of the warehouse where the employee works
+    hire_date DATE NOT NULL,                    -- Date when the employee was hired
+    salary NUMBER(10,0) NOT NULL,              -- Employee's salary
+    CONSTRAINT pk_employees PRIMARY KEY (employee_id), -- Primary key constraint
+    CONSTRAINT fk_employees_warehouse FOREIGN KEY (warehouse_id) REFERENCES warehouses(warehouse_id) -- Foreign key constraint
+);
+
+
+
+-- suppliers table
+CREATE TABLE suppliers (
+    supplier_id VARCHAR2(5),                    -- Unique identifier for each supplier
+    supplier_name VARCHAR2(50) NOT NULL,        -- Name of the supplier
+    contact_person VARCHAR2(50) NOT NULL,       -- Contact person at the supplier
+    phone_number VARCHAR2(20) NOT NULL,         -- Phone number of the supplier
+    supplier_email VARCHAR2(50) NOT NULL,       -- Email address of the supplier
+    supplier_city VARCHAR2(50) NOT NULL,        -- City where the supplier is located
+    warehouse_id VARCHAR2(20),                  -- ID of the warehouse associated with the supplier
+    CONSTRAINT chk_supplier_email CHECK (REGEXP_LIKE(supplier_email, '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')), -- Validate email format
+    CONSTRAINT pk_suppliers PRIMARY KEY (supplier_id), -- Primary key constraint
+    CONSTRAINT fk_suppliers_warehouse FOREIGN KEY (warehouse_id) REFERENCES warehouses(warehouse_id) -- Foreign key constraint
+);
+
+
+
+-- retailers table
+CREATE TABLE retailers (
+    retailer_id VARCHAR2(20),                 -- Unique identifier for each retailer
+    retailer_name VARCHAR2(50),               -- Name of the retailer
+    point_of_contact VARCHAR2(20),            -- Point of contact at the retailer
+    contact_number VARCHAR2(20),              -- Contact number for the retailer
+    retailer_email VARCHAR2(100),             -- Email address of the retailer
+    retailer_city VARCHAR2(50),               -- City where the retailer is located
+    CONSTRAINT pk_retailers PRIMARY KEY (retailer_id) -- Primary key constraint
+);
+
+
+
+-- products table
+CREATE TABLE products (
+    product_id VARCHAR2(20) NOT NULL,          -- Unique identifier for each product
+    product_name VARCHAR2(50) NOT NULL,        -- Name of the product
+    category VARCHAR2(50) NOT NULL,            -- Category of the product
+    cost_price NUMBER(10,2) NOT NULL,          -- Cost price of the product
+    supplier_id VARCHAR2(20) NOT NULL,         -- ID of the supplier for the product
+    CONSTRAINT pk_products PRIMARY KEY (product_id), -- Primary key constraint
+    CONSTRAINT fk_products_supplier FOREIGN KEY (supplier_id) REFERENCES suppliers(supplier_id) -- Foreign key constraint
+);
+
+
+
+-- products_selling_details table
+CREATE TABLE products_selling_details (
+    product_id VARCHAR2(20),                   -- ID of the product
+    selling_price NUMBER(10,2) NOT NULL,      -- Selling price of the product
+    min_threshold NUMBER,                     -- Minimum threshold for stock
+    max_threshold NUMBER,                     -- Maximum threshold for stock
+    CONSTRAINT fk_products_selling_details_product FOREIGN KEY (product_id) REFERENCES products(product_id) -- Foreign key constraint
+);
+
+
+
+-- inventory table
+CREATE TABLE inventory (
+    product_id VARCHAR2(20),                   -- ID of the product
+    location_code VARCHAR2(20),                -- Code of the warehouse location
+    quantity NUMBER(10,0) NOT NULL,           -- Quantity of the product in the location
+    CONSTRAINT fk_inventory_location_code FOREIGN KEY (location_code) REFERENCES warehouse_locations(location_code), -- Foreign key constraint on location_code
+    CONSTRAINT fk_inventory_product FOREIGN KEY (product_id) REFERENCES products(product_id) -- Foreign key constraint on product_id
+);
+
+
+
+-- purchase_orders table
+CREATE TABLE purchase_orders (
+    purchase_order_id VARCHAR2(20),            -- Unique identifier for each purchase order
+    supplier_id VARCHAR2(20) NOT NULL,         -- ID of the supplier from whom the order is placed
+    purchase_order_date DATE DEFAULT SYSDATE,  -- Date when the purchase order was created
+    purchase_status VARCHAR2(50) NOT NULL,     -- Status of the purchase order (e.g., Ordered, Delivered)
+    expected_delivery_date DATE NOT NULL,      -- Expected delivery date for the order
+    delivery_date DATE DEFAULT NULL,           -- Actual delivery date (can be NULL if not yet delivered)
+    CONSTRAINT chk_purchase_status CHECK (purchase_status IN ('Ordered', 'Delivered')), -- Validate status values
+    CONSTRAINT pk_purchase_orders PRIMARY KEY (purchase_order_id), -- Primary key constraint
+    CONSTRAINT fk_purchase_orders_supplier FOREIGN KEY (supplier_id) REFERENCES suppliers(supplier_id) -- Foreign key constraint
+);
+
+
+
+-- purchase_order_details table
+CREATE TABLE purchase_order_details (
+    purchase_order_id VARCHAR2(20),           -- ID of the purchase order
+    product_id VARCHAR2(20),                  -- ID of the product being ordered
+    quantity NUMBER(10,0) NOT NULL,          -- Quantity of the product in the order
+    cost_price NUMBER(10,2) NOT NULL,        -- Cost price of the product in the order
+    CONSTRAINT fk_purchase_order_details_product FOREIGN KEY (product_id) REFERENCES products(product_id), -- Foreign key constraint on product_id
+    CONSTRAINT fk_purchase_order_details_purchase_order FOREIGN KEY (purchase_order_id) REFERENCES purchase_orders(purchase_order_id) -- Foreign key constraint on purchase_order_id
+);
+
+
+
+-- sales_orders table
+CREATE TABLE sales_orders (
+    sales_id VARCHAR2(20),                     -- Unique identifier for each sales order
+    order_date DATE NOT NULL,                  -- Date when the sales order was placed
+    retailer_id VARCHAR2(20) NOT NULL,         -- ID of the retailer placing the order
+    sales_status VARCHAR2(15) DEFAULT 'Ordered', -- Status of the sales order (e.g., Ordered, Shipped, Delivered, Cancelled)
+    expected_delivery_date DATE,               -- Expected delivery date for the order
+    delivery_date DATE DEFAULT NULL,           -- Actual delivery date (can be NULL if not yet delivered)
+    CONSTRAINT chk_sales_status CHECK (sales_status IN ('Ordered', 'Shipped', 'Delivered', 'Cancelled')), -- Validate status values
+    CONSTRAINT pk_sales_orders PRIMARY KEY (sales_id), -- Primary key constraint
+    CONSTRAINT fk_sales_orders_retailer FOREIGN KEY (retailer_id) REFERENCES retailers(retailer_id) -- Foreign key constraint
+);
+
+
+
+-- sales_order_details table
+CREATE TABLE sales_order_details (
+    sales_id VARCHAR2(20) NOT NULL,            -- ID of the sales order
+    product_id VARCHAR2(20) NOT NULL,          -- ID of the product in the sales order
+    location_code VARCHAR2(20) NOT NULL,       -- Code of the warehouse location
+    quantity NUMBER(10,0),                     -- Quantity of the product in the sales order
+    CONSTRAINT fk_sales_order_details_location_code FOREIGN KEY (location_code) REFERENCES warehouse_locations(location_code), -- Foreign key constraint on location_code
+    CONSTRAINT fk_sales_order_details_product FOREIGN KEY (product_id) REFERENCES products(product_id), -- Foreign key constraint on product_id
+    CONSTRAINT fk_sales_order_details_sales FOREIGN KEY (sales_id) REFERENCES sales_orders(sales_id) -- Foreign key constraint on sales_id
+);
+
+
+
+-- payments table
+CREATE TABLE payments (
+    payment_id VARCHAR2(20),                  -- Unique identifier for each payment
+    sales_id VARCHAR2(20),                    -- ID of the sales order related to the payment
+    payment_mode VARCHAR2(50),                -- Mode of payment (e.g., COD, UPI, Cards)
+    payment_date DATE,                       -- Date when the payment was made
+    CONSTRAINT chk_payment_mode CHECK (payment_mode IN ('COD', 'UPI', 'Cards')), -- Validate payment_mode values
+    CONSTRAINT pk_payments PRIMARY KEY (payment_id), -- Primary key constraint
+    CONSTRAINT fk_payments_sales FOREIGN KEY (sales_id) REFERENCES sales_orders(sales_id) -- Foreign key constraint
+);
+
+
+
+-- shipments table
+CREATE TABLE shipments (
+    shipment_id VARCHAR2(20),                -- Unique identifier for each shipment
+    sales_id VARCHAR2(20),                  -- ID of the sales order related to the shipment
+    warehouse_id VARCHAR2(20),              -- ID of the warehouse from where the shipment is dispatched
+    shipment_date DATE,                     -- Date when the shipment was made
+    destination_address VARCHAR2(50),      -- Address where the shipment is to be delivered
+    CONSTRAINT pk_shipments PRIMARY KEY (shipment_id), -- Primary key constraint
+    CONSTRAINT fk_shipments_sales FOREIGN KEY (sales_id) REFERENCES sales_orders(sales_id), -- Foreign key constraint on sales_id
+    CONSTRAINT fk_shipments_warehouse FOREIGN KEY (warehouse_id) REFERENCES warehouses(warehouse_id) -- Foreign key constraint on warehouse_id
+);
+
+
+
+-- shipment_details table
+CREATE TABLE shipment_details (
+    shipment_id VARCHAR2(20),                -- ID of the shipment
+    product_id VARCHAR2(20),                 -- ID of the product being shipped
+    CONSTRAINT fk_shipment_details_product FOREIGN KEY (product_id) REFERENCES products(product_id), -- Foreign key constraint on product_id
+    CONSTRAINT fk_shipment_details_shipment FOREIGN KEY (shipment_id) REFERENCES shipments(shipment_id) -- Foreign key constraint on shipment_id
+);
+
+
+
+-- returns table
+CREATE TABLE returns (
+    return_id VARCHAR2(20),                  -- Unique identifier for each return
+    sales_id VARCHAR2(20) NOT NULL,          -- ID of the sales order related to the return
+    return_placed_date DATE NOT NULL,        -- Date when the return was placed
+    return_status VARCHAR2(50) DEFAULT 'Return Placed', -- Status of the return (e.g., Picked, Received, Return Placed)
+    return_amount NUMBER,                    -- Amount to be returned
+    return_received_date DATE,               -- Date when the return was received
+    CONSTRAINT chk_return_status CHECK (return_status IN ('Picked', 'Received', 'Return Placed')), -- Validate return_status values
+    CONSTRAINT pk_returns PRIMARY KEY (return_id), -- Primary key constraint
+    CONSTRAINT fk_returns_sales FOREIGN KEY (sales_id) REFERENCES sales_orders(sales_id) -- Foreign key constraint on sales_id
+);
+
+
+
+-- return_details table
+CREATE TABLE return_details (
+    return_id VARCHAR2(20),                  -- ID of the return
+    product_id VARCHAR2(20) NOT NULL,       -- ID of the product being returned
+    quantity NUMBER NOT NULL,               -- Quantity of the product being returned
+    CONSTRAINT fk_return_details_product FOREIGN KEY (product_id) REFERENCES products(product_id), -- Foreign key constraint on product_id
+    CONSTRAINT fk_return_details_return FOREIGN KEY (return_id) REFERENCES returns(return_id) -- Foreign key constraint on return_id
+);
